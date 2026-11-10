@@ -10,6 +10,20 @@ export default function Balance() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [r, setR] = useState<Result | null>(null);
+  const [email, setEmail] = useState('');
+  const [eBusy, setEBusy] = useState(false);
+  const [eMsg, setEMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function byEmail(e: React.FormEvent) {
+    e.preventDefault();
+    setEBusy(true); setEMsg(null);
+    try {
+      const res = await fetch('/api/balance/email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+      const j = await res.json();
+      setEMsg(j.ok ? { ok: true, text: `Done. If there are gift cards linked to ${email.trim()}, we have emailed the details there. Check your inbox (and spam folder) in a minute.` } : { ok: false, text: j.error || 'Something went wrong. Please try again.' });
+    } catch { setEMsg({ ok: false, text: 'Something went wrong. Please try again.' }); }
+    setEBusy(false);
+  }
 
   async function check(e: React.FormEvent) {
     e.preventDefault();
@@ -47,8 +61,19 @@ export default function Balance() {
             </div>
           </div>
         )}
+        <section className="stack lookup">
+          <h2>No card number?</h2>
+          <p className="muted">Enter the email the gift card was sent to, or the email you used to buy it. We will email you the cards linked to that address. If you bought a card for someone else, you will see its balance; the card itself stays with them.</p>
+          <form onSubmit={byEmail} className="stack">
+            <label className="f">Email address
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" maxLength={200} />
+            </label>
+            <button className="btn outline" disabled={eBusy || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())}>{eBusy ? 'Sending…' : 'Email me my gift cards'}</button>
+          </form>
+          {eMsg && <p className={eMsg.ok ? 'muted' : 'err'} role="status">{eMsg.text}</p>}
+        </section>
       </main>
-      <style>{`.bal { padding-block: 32px 64px; display: flex; flex-direction: column; gap: 18px; } .bal h1 { font-size: 30px; }`}</style>
+      <style>{`.bal { padding-block: 32px 64px; display: flex; flex-direction: column; gap: 18px; } .bal h1 { font-size: 30px; } .lookup { margin-top: 26px; padding-top: 26px; border-top: 1px solid var(--rule); } .lookup h2 { font-size: 22px; margin: 0; }`}</style>
     </>
   );
 }

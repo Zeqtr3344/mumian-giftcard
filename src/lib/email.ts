@@ -8,6 +8,25 @@ import { dollars, escapeHtml, formatCode, sydneyDate } from './util';
 let resend: Resend | null = null;
 const client = () => (resend ??= new Resend(config.resendKey));
 
+/** Plain-text twin of an HTML email. Sending both parts helps inbox placement (Gmail's Primary tab). */
+function toText(html: string): string {
+  return html
+    .replace(/<(style|head)[\s\S]*?<\/\1>/gi, '')
+    .replace(/<span style="display:none[\s\S]*?<\/span>/i, '')
+    .replace(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, (_m, href, label) => `${label.replace(/<[^>]+>/g, '').trim()}: ${href}`)
+    .replace(/<img [^>]*alt="([^"]*)"[^>]*>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/td>/gi, ' ')
+    .replace(/<\/(tr|div|p|table)>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .split('\n').map(l => l.replace(/\s+/g, ' ').trim()).filter((l, i, a) => l || (a[i - 1] ?? '') !== '')
+    .join('\n').trim();
+}
+
+type Mail = { from: string; to: string; replyTo: string; subject: string; html: string };
+const send = (m: Mail) => client().emails.send({ ...m, text: toText(m.html) });
+
 // Colours and type from the approved MuMian gift card design.
 const C = { ink: '#231F20', mute: '#6B5752', soft: '#5E4E4A', red: '#9D2A17', paper: '#F6EEEA', blush: '#E4CEC6', line: '#DCC8C0', outer: '#EDE6E2' };
 const FONT = "'Roboto Condensed','Arial Narrow',Helvetica,Arial,sans-serif";
@@ -67,7 +86,6 @@ function aboutMuMian() {
 <tr><td style="padding:10px 18px 4px">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
     <tr>${dish('lobster', 'Live lobster, Cantonese style')}${dish('roast-duck', 'Cantonese roast duck')}</tr>
-    <tr>${dish('har-gow', 'Har gow prawn dumplings')}${dish('crab', 'Mud crab')}</tr>
   </table>
 </td></tr>`;
 }
@@ -118,8 +136,8 @@ ${banner(headline)}
   </td></tr></table>
 </td></tr>
 <tr><td style="padding:20px 22px 6px;font-family:${FONT};font-size:15px;line-height:1.55;color:${C.soft};text-align:center">Show this QR code to your waiter when you pay. Tap <b>Open my gift card</b> below any time to see your balance on your phone.</td></tr>
-<tr><td style="padding:12px 22px 0">${button(venue.booking, 'Book a table', true)}</td></tr>
-<tr><td style="padding:10px 22px 0">${button(link, 'Open my gift card &amp; balance', false)}</td></tr>
+<tr><td style="padding:12px 22px 0">${button(link, 'Open my gift card &amp; balance', true)}</td></tr>
+<tr><td style="padding:10px 22px 0">${button(venue.booking, 'Book a table', false)}</td></tr>
 <tr><td style="padding:10px 22px 24px">${button(`${link}#give`, 'Give this card to someone else', false)}</td></tr>
 ${aboutMuMian()}
 ${howToUse()}
@@ -127,7 +145,7 @@ ${terms(sydneyDate(c.expires_at))}
 ${footer()}`,
   `${dollars(c.initial_cents)} MuMian gift card`);
 
-  const { error } = await client().emails.send({
+  const { error } = await send({
     from: config.fromEmail, to: c.recipient_email, replyTo: config.replyTo,
     subject: c.sender_name ? `${c.sender_name} sent you a MuMian gift card` : 'Your MuMian gift card',
     html,
@@ -155,7 +173,7 @@ ${banner(`Thanks for dining with us${c.recipient_name ? `, ${escapeHtml(c.recipi
 </td></tr>
 <tr><td style="padding:12px 22px 24px">${button(cardUrl(c), 'See my gift card', true)}</td></tr>
 ${footer()}`, `${dollars(spentCents)} used, ${dollars(left)} left on your MuMian gift card`);
-  const { error } = await client().emails.send({
+  const { error } = await send({
     from: config.fromEmail, to: c.recipient_email, replyTo: config.replyTo,
     subject: `${dollars(left)} left on your MuMian gift card`, html,
   });
@@ -177,7 +195,7 @@ ${banner('Thank you for your order')}
 </td></tr>
 <tr><td style="padding:16px 22px 24px;font-family:${FONT};font-size:16px;line-height:1.6;color:${C.soft}">Hi ${escapeHtml(o.buyer_name)}, ${when} Your payment receipt from Stripe is sent separately. If anything looks wrong, just reply to this email.</td></tr>
 ${footer()}`, 'Thanks for your MuMian gift card order');
-  const { error } = await client().emails.send({
+  const { error } = await send({
     from: config.fromEmail, to: o.buyer_email, replyTo: config.replyTo,
     subject: 'Your MuMian gift card order', html,
   });
@@ -218,7 +236,7 @@ ${banner(`Your gift card is on its way to ${escapeHtml(toName)}`)}
 </td></tr>
 <tr><td style="padding:10px 22px 24px">${button(venue.booking, 'Book a table', false)}</td></tr>
 ${footer()}`, `Your gift card was passed to ${toName}`);
-  const { error } = await client().emails.send({ from: config.fromEmail, to, replyTo: config.replyTo, subject: `Your MuMian gift card was passed to ${toName}`, html });
+  const { error } = await send({ from: config.fromEmail, to, replyTo: config.replyTo, subject: `Your MuMian gift card was passed to ${toName}`, html });
   if (error) throw new Error(error.message);
 }
 
@@ -233,6 +251,44 @@ ${banner('Please confirm your subscription')}
 </td></tr>
 <tr><td style="padding:10px 22px 26px">${button(link, 'Yes, subscribe me', true)}</td></tr>
 ${footer()}`, 'One tap to confirm your MuMian Journal subscription');
-  const { error } = await client().emails.send({ from: config.fromEmail, to, replyTo: config.replyTo, subject: 'Confirm your MuMian Journal subscription', html });
+  const { error } = await send({ from: config.fromEmail, to, replyTo: config.replyTo, subject: 'Confirm your MuMian Journal subscription', html });
+  if (error) throw new Error(error.message);
+}
+
+
+/** "Find my gift cards": recipients get their card links; buyers get a balance summary only (no QR, so they cannot spend it). */
+export async function sendCardLookupEmail(to: string, own: GiftCard[], bought: GiftCard[]) {
+  const stateLine = (c: GiftCard) => {
+    const s = cardState(c);
+    if (s === 'void') return 'Cancelled';
+    if (s === 'expired') return `Expired on ${sydneyDate(c.expires_at)}`;
+    if (s === 'used') return 'Fully used';
+    return `${dollars(c.balance_cents)} of ${dollars(c.initial_cents)} left · valid until ${sydneyDate(c.expires_at)}`;
+  };
+  const row = (title: string, sub: string, link?: string) => `<tr><td style="padding:12px 0;border-bottom:1px solid ${C.line};font-family:${FONT}">
+    <div style="font-size:16px;font-weight:700;color:${C.ink}">${title}</div>
+    <div style="font-size:14px;color:${C.soft};padding-top:2px">${sub}</div>
+    ${link ? `<div style="padding-top:8px"><a href="${link}" style="color:${C.red};font-size:15px;font-weight:700">Open card and QR code →</a></div>` : ''}
+  </td></tr>`;
+  const ownRows = own.map(c => row(`Card ${formatCode(c.code)}${c.sender_name ? ` · from ${escapeHtml(c.sender_name)}` : ''}`, stateLine(c), cardState(c) === 'active' ? cardUrl(c) : undefined)).join('');
+  const boughtRows = bought.map(c => row(
+    `Gift for ${escapeHtml(c.recipient_name || 'your recipient')}`,
+    !c.delivered_at && c.deliver_at ? `${dollars(c.initial_cents)} · scheduled to be emailed on ${sydneyDate(c.deliver_at)}` : stateLine(c),
+  )).join('');
+  const none = !own.length && !bought.length;
+  const html = shell(`
+${banner('Your MuMian gift cards')}
+<tr><td style="padding:24px 22px 4px;font-family:${FONT};font-size:16px;line-height:1.6;color:#3E3431">
+  ${none
+    ? `Someone asked us to look up gift cards for this email address, but we could not find any. If a card was sent to a different email, try that one, or reply to this email and we will help.`
+    : `Here are the MuMian gift cards linked to this email address, as you asked.`}
+</td></tr>
+${own.length ? `<tr><td style="padding:14px 22px 0">${sectionTitle('CARDS FOR YOU')}<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${ownRows}</table></td></tr>` : ''}
+${bought.length ? `<tr><td style="padding:18px 22px 0">${sectionTitle('GIFT CARDS YOU BOUGHT')}<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${boughtRows}</table>
+  <div style="font-family:${FONT};font-size:13px;line-height:1.6;color:${C.mute};padding-top:10px">For security, the QR code for a gift is only sent to the person receiving it.</div></td></tr>` : ''}
+<tr><td style="padding:22px 22px 24px">${button(venue.booking, 'Book a table', true)}</td></tr>
+<tr><td style="padding:0 22px 16px;font-family:${FONT};font-size:13px;color:${C.mute}">Did not ask for this? You can ignore this email; nobody else can see these details.</td></tr>
+${footer()}`, 'The gift cards linked to your email');
+  const { error } = await send({ from: config.fromEmail, to, replyTo: config.replyTo, subject: 'Your MuMian gift cards', html });
   if (error) throw new Error(error.message);
 }
