@@ -1,7 +1,14 @@
 import { config } from '@/lib/config';
 import { db } from '@/lib/db';
 import { stripe } from '@/lib/stripe';
+import { createHash } from 'crypto';
+import { clientId } from '@/lib/session';
 import { cleanText, dollars, isEmail, sydneyMidnight, sydneyToday } from '@/lib/util';
+
+// Anti-fraud limits (stolen-card gift card scams): per buyer email and per device/IP.
+const DAY_MAX_ORDERS = 3;          // paid orders in 24 hours
+const DAY_MAX_CENTS = 1500 * 100;  // paid value in 24 hours
+const HOUR_MAX_STARTS = 8;         // checkout attempts in an hour (stops card testing)
 
 export const runtime = 'nodejs';
 
@@ -32,7 +39,23 @@ export async function POST(req: Request) {
   const deliverAt = date === today ? new Date() : sydneyMidnight(date);
   if (deliverAt.getTime() > Date.now() + 366 * 864e5) return bad('Choose a delivery date within the next 12 months.');
 
+  // Limits: refuse if this buyer or device has already bought a lot in the last day.
+  const client = createHash('sha256').update((await clientId()) + 'mumian-orders').digest('hex').slice(0, 24);
+  const dayAgo = new Date(Date.now() - 864e5).toISOString(), hourAgo = new Date(Date.now() - 36e5).toISOString();
+  const [byEmail, byClient, starts] = await Promise.all([
+    db().from('orders').select('amount_cents').eq('buyer_email', buyerEmail).eq('status', 'paid').gte('created_at', dayAgo),
+    db().from('orders').select('amount_cents').eq('client_hash', client).eq('status', 'paid').gte('created_at', dayAgo),
+    db().from('orders').select('id', { count: 'exact', head: true }).eq('client_hash', client).gte('created_at', hourAgo),
+  ]);
+  const sum = (r: { data: { amount_cents: number }[] | null }) => (r.data ?? []).reduce((a, o) => a + o.amount_cents, 0);
+  const tooMany = [byEmail, byClient].some(r => (r.data?.length ?? 0) >= DAY_MAX_ORDERS || sum(r) + amount * 100 > DAY_MAX_CENTS);
+  if (tooMany || (starts.count ?? 0) >= HOUR_MAX_STARTS) {
+    console.warn('checkout: purchase limit hit', { client, email: buyerEmail.replace(/^(.).*@/, '$1***@') });
+    return bad(`For security, online gift card purchases are limited to ${DAY_MAX_ORDERS} cards or $${DAY_MAX_CENTS / 100} a day. For larger or corporate orders, please email ${config.replyTo}.`, 429);
+  }
+
   const { data: order, error } = await db().from('orders').insert({
+    client_hash: client,
     amount_cents: amount * 100,
     buyer_name: buyerName, buyer_email: buyerEmail,
     recipient_name: recipientName, recipient_email: recipientEmail,
@@ -62,6 +85,8 @@ export async function POST(req: Request) {
     }],
     metadata: { order_id: order.id },
     payment_intent_data: { metadata: { order_id: order.id }, description: `MuMian gift card ${order.id}` },
+    // Ask the card's bank to verify the buyer (3D Secure). Fraud chargebacks on verified payments usually fall on the bank, not us.
+    payment_method_options: { card: { request_three_d_secure: 'any' } },
     success_url: `${config.appUrl}/success?order=${order.id}`,
     cancel_url: `${config.appUrl}/?cancelled=1`,
     expires_at: Math.floor(Date.now() / 1000) + 60 * 60,

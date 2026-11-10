@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Scanner from './Scanner';
 import { PinLogin, post, type Me } from './PinLogin';
 
-type Card = { code: string; rawCode: string; balance_cents: number; initial_cents: number; expires_at: string; state: 'active' | 'used' | 'expired' | 'void'; recipient_name: string | null; source: string };
+type Card = { code: string; rawCode: string; balance_cents: number; initial_cents: number; expires_at: string; state: 'active' | 'used' | 'expired' | 'void'; recipient_name: string | null; source: string; issued_at?: string };
 type Today = { id: number; code: string; staff: string; amount_cents: number; created_at: string; reversed: boolean };
 
 const money = (c: number) => (c / 100).toLocaleString('en-AU', { style: 'currency', currency: 'AUD' });
@@ -150,6 +150,9 @@ function Redeem({ me, onLoggedOut }: { me: Me; onLoggedOut: () => void }) {
           </div>
           <div className="stack" style={{ gap: 2 }}><span className="small" style={{ color: 'var(--soft)' }}>Current balance</span><span className="bigbal num">{money(card.balance_cents)}</span></div>
           <div className="small" style={{ color: 'var(--soft)' }}>{card.state === 'expired' ? 'Expired' : 'Expires'} {day(card.expires_at)}{card.recipient_name ? ` · Holder: ${card.recipient_name}` : ''}{card.source === 'tao_legacy' ? ' · Tao Group voucher' : ''}</div>
+          {usable && card.source === 'online' && card.issued_at && Date.now() - new Date(card.issued_at).getTime() < 48 * 3600e3 && card.initial_cents >= 20000 && (
+            <p className="note" style={{ margin: 0 }}>New card: bought online {Math.max(1, Math.round((Date.now() - new Date(card.issued_at).getTime()) / 3600e3))} hour(s) ago. Fine to accept. For a large bill, a friendly check that the guest is {card.recipient_name || 'the card holder'} is good practice.</p>
+          )}
         </div>
         {usable ? (
           <>

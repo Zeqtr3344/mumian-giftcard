@@ -292,3 +292,13 @@ ${footer()}`, 'The gift cards linked to your email');
   const { error } = await send({ from: config.fromEmail, to, replyTo: config.replyTo, subject: 'Your MuMian gift cards', html });
   if (error) throw new Error(error.message);
 }
+
+/** Internal notice to the MuMian team (goes to the reply-to inbox, mumian@taogroup.com.au). */
+export async function sendStaffAlert(subject: string, lines: string[]) {
+  const html = shell(`
+<tr><td style="padding:22px 22px 6px;font-family:${FONT};font-size:13px;letter-spacing:2px;font-weight:700;color:${C.red}">MUMIAN GIFT CARDS · STAFF NOTICE</td></tr>
+<tr><td style="padding:6px 22px 24px;font-family:${FONT};font-size:16px;line-height:1.6;color:#3E3431">${lines.map(l => `<p style="margin:0 0 12px">${escapeHtml(l)}</p>`).join('')}
+<p style="margin:12px 0 0"><a href="${config.appUrl}/admin" style="color:${C.red}">Open gift card admin</a> · <a href="https://dashboard.stripe.com/payments" style="color:${C.red}">Stripe payments</a></p></td></tr>`, subject);
+  const { error } = await send({ from: config.fromEmail, to: config.replyTo, replyTo: config.replyTo, subject: `[Gift cards] ${subject}`, html });
+  if (error) throw new Error(error.message);
+}

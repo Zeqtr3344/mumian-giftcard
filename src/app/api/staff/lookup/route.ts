@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     ok: true,
     card: {
       code: formatCode(card.code), rawCode: card.code, balance_cents: card.balance_cents, initial_cents: card.initial_cents,
-      expires_at: card.expires_at, state: cardState(card), recipient_name: card.recipient_name, source: card.source,
+      expires_at: card.expires_at, state: cardState(card), recipient_name: card.recipient_name, source: card.source, issued_at: card.issued_at,
     },
     recent: tx ?? [],
   });

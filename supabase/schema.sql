@@ -28,7 +28,8 @@ create table if not exists orders (
   recipient_email    text not null,
   message            text,
   deliver_at         timestamptz not null default now(),
-  status             text not null default 'pending' check (status in ('pending','paid','cancelled','refunded')),
+  status             text not null default 'pending' check (status in ('pending','paid','cancelled','refunded','disputed')),
+  client_hash        text,                       -- hashed device/IP, for purchase limits
   created_at         timestamptz not null default now(),
   paid_at            timestamptz
 );
@@ -245,3 +246,24 @@ create table if not exists subscribers (
 );
 create unique index if not exists subscribers_email_idx on subscribers (lower(email));
 alter table subscribers enable row level security;
+
+create index if not exists orders_client_idx on orders (client_hash, created_at desc);
+create index if not exists orders_buyer_created_idx on orders (lower(buyer_email), created_at desc);
+
+-- ---------- "Find my gift cards" email lookups (rate limiting) ----------
+create table if not exists email_lookups (
+  id bigint generated always as identity primary key,
+  email text not null, client text, at timestamptz not null default now()
+);
+create index if not exists email_lookups_idx on email_lookups (email, at desc);
+alter table email_lookups enable row level security;
+
+-- ---------- Ask MuMian questions (rate limiting and insight; no IP stored) ----------
+create table if not exists ask_log (
+  id bigint generated always as identity primary key,
+  client_hash text not null, question text not null, answered_by text not null default 'ai',
+  at timestamptz not null default now()
+);
+create index if not exists ask_log_client_idx on ask_log (client_hash, at desc);
+create index if not exists ask_log_at_idx on ask_log (at desc);
+alter table ask_log enable row level security;
