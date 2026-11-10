@@ -17,7 +17,8 @@ export default function GiveCard({ token, balance }: { token: string; balance: s
     setBusy(true); setError('');
     const r = await fetch('/api/card/transfer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(x => x.json()).catch(() => ({ ok: false, error: 'Something went wrong. Please try again.' }));
     setBusy(false);
-    if (r.ok) setDone(`Done. We have emailed the card to ${body.toName}. This page no longer works for you.`);
+    // Leave the old card page: its QR code and number no longer work.
+    if (r.ok) { setDone('Sent.'); window.location.replace(`/given?to=${encodeURIComponent(String(body.toName || ''))}`); }
     else setError(r.error);
   }
 
