@@ -4,7 +4,8 @@ import './globals.css';
 export const metadata: Metadata = {
   title: { default: 'Gift Cards · MuMian Dining', template: '%s · MuMian Dining' },
   description: 'Buy a MuMian Dining gift card for modern Cantonese dining at Darling Quarter, Darling Harbour, Sydney. Sent by email, valid for three years.',
-  icons: { icon: '/icon.png' },
+  icons: { icon: '/icon.png', apple: '/apple-touch-icon.png' },
+  appleWebApp: { title: 'MuMian', capable: true, statusBarStyle: 'default' },
   metadataBase: new URL(process.env.APP_URL || 'http://localhost:3000'),
 };
 

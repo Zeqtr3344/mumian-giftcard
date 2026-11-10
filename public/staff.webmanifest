@@ -1,0 +1,13 @@
+{
+  "name": "MuMian Staff",
+  "short_name": "MuMian Staff",
+  "start_url": "/staff",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#231F20",
+  "theme_color": "#231F20",
+  "icons": [
+    { "src": "/app-icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/app-icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
