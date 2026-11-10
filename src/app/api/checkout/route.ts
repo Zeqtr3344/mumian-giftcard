@@ -39,9 +39,14 @@ export async function POST(req: Request) {
     message: message || null,
     deliver_at: deliverAt.toISOString(),
   }).select('id').single();
-  if (error || !order) return bad('We could not start your order. Please try again.', 500);
+  if (error || !order) {
+    console.error('checkout: order insert failed', error?.code, error?.message, error?.hint);
+    return bad('We could not start your order. Please try again.', 500);
+  }
 
-  const session = await stripe().checkout.sessions.create({
+  let session;
+  try {
+  session = await stripe().checkout.sessions.create({
     mode: 'payment',
     customer_email: buyerEmail,
     line_items: [{
@@ -61,6 +66,10 @@ export async function POST(req: Request) {
     cancel_url: `${config.appUrl}/?cancelled=1`,
     expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
   });
+  } catch (e) {
+    console.error('checkout: stripe session failed', (e as Error).message);
+    return bad('We could not start your order. Please try again.', 500);
+  }
 
   await db().from('orders').update({ stripe_session_id: session.id }).eq('id', order.id);
   return Response.json({ ok: true, url: session.url });
