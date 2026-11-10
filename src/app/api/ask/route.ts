@@ -92,12 +92,12 @@ export async function POST(req: Request) {
   const raw: unknown[] = Array.isArray(body.messages) ? body.messages.slice(-10) : [];
   const messages: Msg[] = raw
     .filter((m): m is Msg => !!m && typeof (m as Msg).content === 'string' && ((m as Msg).role === 'user' || (m as Msg).role === 'assistant'))
-    .map(m => ({ role: m.role, content: m.content.slice(0, 400) }));
+    .map(m => ({ role: m.role, content: m.content.slice(0, 600) }));
   while (messages.length && messages[0].role !== 'user') messages.shift();
   const last = messages[messages.length - 1];
   if (!last || last.role !== 'user' || !last.content.trim()) return Response.json({ ok: false, error: 'empty' }, { status: 400, headers: h });
 
-  if (last.content.length > 400 || offTopic(last.content)) return Response.json({ ok: true, answer: refusal(last.content), scope: 'refused' }, { headers: h });
+  if (last.content.length > 600 || offTopic(last.content)) return Response.json({ ok: true, answer: refusal(last.content), scope: 'refused' }, { headers: h });
 
   const key = (process.env.ANTHROPIC_API_KEY || '').replace(/\s+/g, '');
   if (!key) return Response.json({ ok: false, error: 'not_configured' }, { status: 503, headers: h });
@@ -109,7 +109,8 @@ export async function POST(req: Request) {
     db().from('ask_log').select('id', { count: 'exact', head: true }).gte('at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
   ]);
   if ((mine ?? 0) >= 20 || (today ?? 0) >= 1500) return Response.json({ ok: false, error: 'rate_limited' }, { status: 429, headers: h });
-  await db().from('ask_log').insert({ client_hash: client, question: last.content.slice(0, 500) });
+  const { data: logRow } = await db().from('ask_log').insert({ client_hash: client, question: last.content.slice(0, 500), answered_by: 'pending' }).select('id').single();
+  const mark = (how: string) => logRow?.id ? db().from('ask_log').update({ answered_by: how.slice(0, 120) }).eq('id', logRow.id).then(() => {}, () => {}) : Promise.resolve();
 
   const system = `${RULES}\n\nToday in Sydney: ${new Date().toLocaleString('en-AU', { timeZone: 'Australia/Sydney', weekday: 'long', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' })}.\n\nFACTS:\n${FACTS}\n\nMENU (dish | Chinese | price | tag | notes):\n${await menuText()}`;
   try {
@@ -123,13 +124,16 @@ export async function POST(req: Request) {
     const j = await r.json();
     if (!r.ok) {
       console.error('Ask API error', r.status, JSON.stringify(j).slice(0, 300));
+      await mark(`error ${r.status}: ${j?.error?.message || ''}`);
       return Response.json({ ok: false, error: 'upstream' }, { status: 502, headers: h });
     }
     let text = (j.content || []).filter((c: { type: string }) => c.type === 'text').map((c: { text: string }) => c.text).join('').trim();
     if (looksLikeCode(text)) text = refusal(last.content);
+    await mark(text ? `ai (${process.env.ASK_MODEL || 'claude-haiku-5-5'})` : 'error: empty answer');
     return Response.json({ ok: true, answer: text }, { headers: h });
   } catch (e) {
     console.error('Ask failed', e);
+    await mark(`error: ${(e as Error).message}`);
     return Response.json({ ok: false, error: 'upstream' }, { status: 502, headers: h });
   }
 }
