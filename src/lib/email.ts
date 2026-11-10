@@ -117,9 +117,10 @@ ${banner(headline)}
     <div style="font-family:${FONT};font-size:15px;font-weight:700;letter-spacing:2px;padding-top:10px;color:${C.ink}">${formatCode(c.code)}</div>
   </td></tr></table>
 </td></tr>
-<tr><td style="padding:20px 22px 6px;font-family:${FONT};font-size:15px;line-height:1.55;color:${C.soft};text-align:center">Show this QR code to your waiter when you pay. Scan it any time to check your balance.</td></tr>
-<tr><td style="padding:12px 22px 0">${button(link, 'Check my balance', true)}</td></tr>
-<tr><td style="padding:10px 22px 24px">${button(venue.booking, 'Book a table', false)}</td></tr>
+<tr><td style="padding:20px 22px 6px;font-family:${FONT};font-size:15px;line-height:1.55;color:${C.soft};text-align:center">Show this QR code to your waiter when you pay. Tap <b>Open my gift card</b> below any time to see your balance on your phone.</td></tr>
+<tr><td style="padding:12px 22px 0">${button(venue.booking, 'Book a table', true)}</td></tr>
+<tr><td style="padding:10px 22px 0">${button(link, 'Open my gift card &amp; balance', false)}</td></tr>
+<tr><td style="padding:10px 22px 24px">${button(`${link}#give`, 'Give this card to someone else', false)}</td></tr>
 ${aboutMuMian()}
 ${howToUse()}
 ${terms(sydneyDate(c.expires_at))}
@@ -205,4 +206,18 @@ export async function deliverIfDue(cardId: string, force = false): Promise<'sent
     if (!force) await db().from('gift_cards').update({ delivered_at: null }).eq('id', cardId);
     return 'failed';
   }
+}
+
+/** To the previous holder after they pass the card on. */
+export async function sendTransferConfirmEmail(to: string, name: string | null, toName: string, balanceCents: number) {
+  const html = shell(`
+${banner(`Your gift card is on its way to ${escapeHtml(toName)}`)}
+<tr><td style="padding:26px 22px 10px;font-family:${FONT};font-size:16px;line-height:1.6;color:#3E3431">
+  Hi ${escapeHtml(name || 'there')}, we have emailed your MuMian gift card with its ${dollars(balanceCents)} balance to ${escapeHtml(toName)}. The card now has a new number and QR code, so your old email and link no longer work.<br><br>
+  If you did not do this, please reply to this email straight away.
+</td></tr>
+<tr><td style="padding:10px 22px 24px">${button(venue.booking, 'Book a table', false)}</td></tr>
+${footer()}`, `Your gift card was passed to ${toName}`);
+  const { error } = await client().emails.send({ from: config.fromEmail, to, replyTo: config.replyTo, subject: `Your MuMian gift card was passed to ${toName}`, html });
+  if (error) throw new Error(error.message);
 }

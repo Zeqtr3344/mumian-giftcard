@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import QRCode from 'qrcode';
 import { Footer } from '../../components';
+import GiveCard from './GiveCard';
 import { cardByToken, cardState, cardUrl } from '@/lib/cards';
 import { venue } from '@/lib/config';
 import { db } from '@/lib/db';
@@ -72,7 +73,8 @@ export default async function CardPage({ params }: { params: Promise<{ token: st
 
         <div className="stack">
           <a className="btn" href={venue.booking}>Book a table</a>
-          <a className="btn outline" href="/">Buy a gift card for someone</a>
+          {state === 'active' && !staff && <GiveCard token={card.view_token} balance={money(card.balance_cents)} />}
+          <a className="btn outline" href="/">Buy a new gift card</a>
         </div>
       </main>
       <Footer />
