@@ -30,7 +30,7 @@ export const venue = {
   site: 'https://mumian.au',
   email: 'mumian@taogroup.com.au',
   instagram: '@mumian.dining',
-  instagramConfirmed: false, // set true once Shawn confirms the handle, to make it a link
+  instagramConfirmed: true, // confirmed by Shawn, 10 Nov 2026
   get instagramUrl() { return `https://www.instagram.com/${this.instagram.replace(/^@/, '')}/`; },
   maps: 'https://maps.google.com/?q=MuMian+Dining,+Darling+Quarter,+1-25+Harbour+Street,+Sydney+NSW+2000',
   shortAddress: '1–25 Harbour Street, Darling Quarter',
