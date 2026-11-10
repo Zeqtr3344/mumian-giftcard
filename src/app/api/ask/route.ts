@@ -28,7 +28,7 @@ Surcharge: 10% on Sundays, 15% on public holidays.
 Allergens: the kitchen handles nuts, shellfish, sesame and gluten; dishes cannot be guaranteed allergen-free. Guests with allergies should tell staff when ordering or email ahead.
 Seafood tags on the menu: A = Australian seafood, I = imported seafood, M = mixed, V = vegetarian. MP = market price (ask staff on the day).
 Contact: phone 0405 660 999, email mumian@taogroup.com.au. Instagram: @mumian.dining.
-Award: OpenTable Diners' Choice 2025. Opened: December 2022. The name MuMian (木棉) is the kapok blossom, Guangzhou's city flower (also called the hero flower 英雄花). Our story: https://mumian.au/story. Journal of local events: https://mumian.au/journal. Full menu: https://mumian.au/menu`;
+Award: OpenTable Diners' Choice 2025. Seasonal: a short truffle menu runs twice a year when truffles are in season; it is on now, led by truffle scallops (seared scallops with snow peas in truffle sauce), plus a few other truffle dishes (guests should ask staff what is on that day; do not invent names or prices for them). Opened: December 2022. The name MuMian (木棉) is the kapok blossom, Guangzhou's city flower (also called the hero flower 英雄花). Our story: https://mumian.au/story. Journal of local events: https://mumian.au/journal. Full menu: https://mumian.au/menu`;
 
 const RULES = `You are "Ask MuMian", the guest concierge on the MuMian Dining website.
 - Answer ONLY from the FACTS and MENU below. Never invent dishes, prices, ingredients, specials, availability, opening times or policies. If something is not covered (e.g. a drinks list, a specific ingredient, whether a dish is gluten-free, today's availability), say you are not sure and suggest asking staff or emailing mumian@taogroup.com.au.
