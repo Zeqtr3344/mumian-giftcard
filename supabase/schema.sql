@@ -71,6 +71,9 @@ create table if not exists card_transactions (
   created_at    timestamptz not null default now()
 );
 create index if not exists card_tx_card_idx on card_transactions (card_id, created_at desc);
+create index if not exists card_tx_staff_idx on card_transactions (staff_id);
+create index if not exists card_tx_reverses_idx on card_transactions (reverses_id);
+create index if not exists gift_cards_created_by_idx on gift_cards (created_by);
 
 -- Lock everything down: the app talks to the database only with the
 -- service-role key from server code. No browser access at all.
