@@ -99,6 +99,12 @@ function Redeem({ me, onLoggedOut }: { me: Me; onLoggedOut: () => void }) {
   }, [onLoggedOut]);
 
   const onScan = useCallback((c: string) => { lookup(c); }, [lookup]);
+
+  // Opened from a guest's QR with the phone camera: the card page sends staff here with ?code=…
+  useEffect(() => {
+    const c = new URLSearchParams(window.location.search).get('code');
+    if (c) { window.history.replaceState(null, '', '/staff'); setCode(c); lookup(c); }
+  }, [lookup]);
   const cents = Math.round(Number(amount || '0') * 100);
 
   async function redeem(useCents: number) {

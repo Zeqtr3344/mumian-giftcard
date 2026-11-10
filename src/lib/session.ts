@@ -20,7 +20,7 @@ export async function startSession(s: Staff) {
     .setExpirationTime(`${HOURS}h`)
     .sign(key());
   (await cookies()).set(COOKIE, token, {
-    httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/', maxAge: HOURS * 3600,
+    httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: HOURS * 3600,
   });
 }
 

@@ -4,6 +4,7 @@ import { Footer } from '../../components';
 import { cardByToken, cardState, cardUrl } from '@/lib/cards';
 import { venue } from '@/lib/config';
 import { db } from '@/lib/db';
+import { currentStaff } from '@/lib/session';
 import { dollars, formatCode, sydneyDate } from '@/lib/util';
 
 export const dynamic = 'force-dynamic';
@@ -17,6 +18,7 @@ export default async function CardPage({ params }: { params: Promise<{ token: st
   const card = await cardByToken((await params).token);
   if (!card) notFound();
   const state = cardState(card);
+  const staff = await currentStaff();
   const qr = await QRCode.toDataURL(cardUrl(card), { width: 480, margin: 1, color: { dark: '#231F20ff', light: '#FFFFFFff' } });
   const { data: tx } = await db().from('card_transactions').select('id, kind, amount_cents, created_at')
     .eq('card_id', card.id).order('created_at', { ascending: false }).limit(30);
@@ -28,6 +30,11 @@ export default async function CardPage({ params }: { params: Promise<{ token: st
   return (
     <>
       <main className="col cardpage">
+        {staff && state === 'active' && (
+          <a className="btn" href={`/staff?code=${encodeURIComponent(card.code)}`} style={{ display: 'block', textAlign: 'center', background: 'var(--red)', color: '#fff', padding: '16px', borderRadius: 12, fontWeight: 700, textDecoration: 'none' }}>
+            Staff ({staff.name}): redeem this card
+          </a>
+        )}
         <div className="head">
           <a href="/"><img src="/logo-red.png" alt="MūMiān 木棉" width={109} height={34} /></a>
           <span className="small muted mono" style={{ fontWeight: 400, letterSpacing: 1 }}>{formatCode(card.code)}</span>
