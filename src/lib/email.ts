@@ -221,3 +221,18 @@ ${footer()}`, `Your gift card was passed to ${toName}`);
   const { error } = await client().emails.send({ from: config.fromEmail, to, replyTo: config.replyTo, subject: `Your MuMian gift card was passed to ${toName}`, html });
   if (error) throw new Error(error.message);
 }
+
+/** Double opt-in: ask a new journal subscriber to confirm. */
+export async function sendSubscribeConfirmEmail(to: string, name: string | null, token: string) {
+  const link = `${config.appUrl}/api/subscribe/confirm?t=${encodeURIComponent(token)}`;
+  const html = shell(`
+${banner('Please confirm your subscription')}
+<tr><td style="padding:26px 22px 10px;font-family:${FONT};font-size:16px;line-height:1.6;color:#3E3431">
+  Hi ${escapeHtml(name || 'there')}, thank you for signing up to the MuMian Journal: what's on around Darling Harbour, new dishes and news from MuMian Dining, sent now and then.<br><br>
+  Please tap the button below to confirm. If you did not sign up, simply ignore this email and you will not hear from us.
+</td></tr>
+<tr><td style="padding:10px 22px 26px">${button(link, 'Yes, subscribe me', true)}</td></tr>
+${footer()}`, 'One tap to confirm your MuMian Journal subscription');
+  const { error } = await client().emails.send({ from: config.fromEmail, to, replyTo: config.replyTo, subject: 'Confirm your MuMian Journal subscription', html });
+  if (error) throw new Error(error.message);
+}

@@ -230,3 +230,18 @@ do $$ begin
     revoke execute on all functions in schema public from public, anon, authenticated;
   end if;
 end $$;
+
+-- ---------- Journal newsletter subscribers (double opt-in) ----------
+create table if not exists subscribers (
+  id uuid primary key default gen_random_uuid(),
+  email text not null,
+  name text,
+  source text not null default 'journal',
+  status text not null default 'pending' check (status in ('pending','confirmed','unsubscribed')),
+  token text not null unique,
+  created_at timestamptz not null default now(),
+  confirmed_at timestamptz,
+  unsubscribed_at timestamptz
+);
+create unique index if not exists subscribers_email_idx on subscribers (lower(email));
+alter table subscribers enable row level security;

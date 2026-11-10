@@ -22,8 +22,9 @@ export function Footer() {
   return (
     <footer className="foot">
       <div className="col">
-        Valid for 3 years from purchase · Use any time at {venue.name}, {venue.shortAddress}<br />
-        Questions? <a href={`mailto:${venue.email}`}>{venue.email}</a> · Issued by {venue.legalEntity}. No fees after purchase.
+        Valid for 3 years from purchase · Use over several visits at {venue.name}, {venue.shortAddress}<br />
+        Not redeemable for cash and no change given; any unused balance stays on the card. The balance is never reduced by fees.<br />
+        Questions? <a href={`mailto:${venue.email}`}>{venue.email}</a> · Issued by {venue.legalEntity}.
       </div>
     </footer>
   );
