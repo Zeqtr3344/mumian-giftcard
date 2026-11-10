@@ -91,11 +91,13 @@ export async function POST(req: Request) {
 
   const system = `${RULES}\n\nToday in Sydney: ${new Date().toLocaleString('en-AU', { timeZone: 'Australia/Sydney', weekday: 'long', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' })}.\n\nFACTS:\n${FACTS}\n\nMENU (dish | Chinese | price | tag | notes):\n${await menuText()}`;
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: process.env.ASK_MODEL || 'claude-haiku-5-5', max_tokens: 600, system, messages }),
-    });
+    const payload = JSON.stringify({ model: process.env.ASK_MODEL || 'claude-haiku-5-5', max_tokens: 600, system, messages });
+    const base: Record<string, string> = { 'anthropic-version': '2023-06-01', 'content-type': 'application/json' };
+    const ws = (process.env.ANTHROPIC_WORKSPACE_ID || '').trim();
+    if (ws) base['anthropic-workspace-id'] = ws;
+    const call = (auth: Record<string, string>) => fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { ...base, ...auth }, body: payload });
+    let r = await call({ authorization: `Bearer ${key}` });
+    if (r.status === 401) r = await call({ 'x-api-key': key });
     const j = await r.json();
     if (!r.ok) {
       console.error('Ask API error', r.status, JSON.stringify(j).slice(0, 300));
