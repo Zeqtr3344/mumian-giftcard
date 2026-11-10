@@ -50,6 +50,53 @@ ${rows}
 </table></td></tr></table></body></html>`;
 }
 
+
+function sectionTitle(t: string) {
+  return `<div style="font-family:${FONT};font-size:13px;letter-spacing:2px;font-weight:700;color:${C.red};padding-bottom:8px">${t}</div>`;
+}
+
+/** For people who have never been: what MuMian is, with four signature dishes. */
+function aboutMuMian() {
+  const dish = (file: string, label: string) => `<td width="50%" valign="top" style="padding:4px">
+    <img src="${img(`/email/${file}.jpg`)}" width="214" height="214" alt="${label}" style="display:block;width:100%;height:auto;border:0;border-radius:10px">
+    <div style="font-family:${FONT};font-size:13px;color:${C.soft};padding:6px 2px 4px">${label}</div></td>`;
+  return `<tr><td style="padding:22px 22px 6px;border-top:1px solid ${C.line}">
+  ${sectionTitle('ABOUT MUMIAN')}
+  <div style="font-family:${FONT};font-size:16px;line-height:1.6;color:#3E3431">MuMian Dining is a modern Cantonese restaurant at Darling Quarter, Darling Harbour, Sydney. Come for a feast made for sharing: live seafood from our tanks, Cantonese roast meats, handmade dim sum and cocktails, in a warm dining room with alfresco seating and a private dining room for celebrations.</div>
+</td></tr>
+<tr><td style="padding:10px 18px 4px">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    <tr>${dish('lobster', 'Live lobster, Cantonese style')}${dish('roast-duck', 'Cantonese roast duck')}</tr>
+    <tr>${dish('har-gow', 'Har gow prawn dumplings')}${dish('crab', 'Mud crab')}</tr>
+  </table>
+</td></tr>`;
+}
+
+function howToUse() {
+  const step = (n: number, text: string) => `<tr><td width="30" valign="top" style="font-family:${FONT};font-size:16px;font-weight:700;color:${C.red};padding:4px 0">${n}</td><td style="font-family:${FONT};font-size:15px;line-height:1.55;color:#3E3431;padding:4px 0">${text}</td></tr>`;
+  return `<tr><td style="padding:18px 22px 4px;border-top:1px solid ${C.line}">
+  ${sectionTitle('HOW TO USE YOUR GIFT CARD')}
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    ${step(1, `Book a table online at <a href="${venue.booking}" style="color:${C.red}">OpenTable</a>, or walk in when tables are free. Lunch and dinner, seven days, at ${escapeHtml(venue.shortAddress)}.`)}
+    ${step(2, 'When you are ready to pay, show the QR code above to your waiter. They scan it and take the amount off your card.')}
+    ${step(3, 'Any amount left stays on your card for your next visit. We email you the new balance each time.')}
+  </table>
+</td></tr>`;
+}
+
+function terms(expires: string) {
+  return `<tr><td style="padding:14px 22px 20px;border-top:1px solid ${C.line}">
+  ${sectionTitle('GOOD TO KNOW')}
+  <div style="font-family:${FONT};font-size:13px;line-height:1.7;color:${C.mute}">
+  · Valid until ${expires}. Use it for food and drinks at MuMian Dining, Darling Quarter.<br>
+  · Can be used over several visits. Any unused amount stays on the card.<br>
+  · Not redeemable for cash, and no change is given.<br>
+  · If the bill is more than the balance, simply pay the difference.<br>
+  · Keep this email safe: anyone with the QR code can use the card. Lost it? Email us and we can resend it.
+  </div>
+</td></tr>`;
+}
+
 export async function sendGiftCardEmail(c: GiftCard) {
   if (!c.recipient_email) throw new Error('Card has no email address');
   const link = cardUrl(c);
@@ -73,7 +120,10 @@ ${banner(headline)}
 <tr><td style="padding:20px 22px 6px;font-family:${FONT};font-size:15px;line-height:1.55;color:${C.soft};text-align:center">Show this QR code to your waiter when you pay. Scan it any time to check your balance.</td></tr>
 <tr><td style="padding:12px 22px 0">${button(link, 'Check my balance', true)}</td></tr>
 <tr><td style="padding:10px 22px 24px">${button(venue.booking, 'Book a table', false)}</td></tr>
-${footer(`Expires ${sydneyDate(c.expires_at)} · Can be used over several visits`)}`,
+${aboutMuMian()}
+${howToUse()}
+${terms(sydneyDate(c.expires_at))}
+${footer()}`,
   `${dollars(c.initial_cents)} MuMian gift card`);
 
   const { error } = await client().emails.send({
