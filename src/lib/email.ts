@@ -53,8 +53,8 @@ function banner(headline: string) {
 
 function footer(extra = '') {
   return `<tr><td style="padding:16px 22px 28px;border-top:1px solid ${C.line};font-family:${FONT};font-size:13px;line-height:1.7;color:${C.mute};text-align:center">
-  ${extra}${extra ? '<br>' : ''}${venue.shortAddress.toUpperCase()}<br>
-  <a href="mailto:${venue.email}" style="color:${C.mute}">${venue.email.toUpperCase()}</a> · <a href="${venue.site}" style="color:${C.mute}">MUMIAN.AU</a> · ${venue.instagram.toUpperCase()}
+  ${extra}${extra ? '<br>' : ''}<a href="${venue.maps}" style="color:${C.mute};text-decoration:none">${venue.shortAddress.toUpperCase()}</a><br>
+  <a href="mailto:${venue.email}" style="color:${C.mute}">${venue.email.toUpperCase()}</a> · <a href="${venue.site}" style="color:${C.mute}">MUMIAN.AU</a> · ${venue.instagramConfirmed ? `<a href="${venue.instagramUrl}" style="color:${C.mute}">INSTAGRAM ${venue.instagram.toUpperCase()}</a>` : venue.instagram.toUpperCase()}
   </td></tr>`;
 }
 
@@ -95,7 +95,7 @@ function howToUse() {
   return `<tr><td style="padding:18px 22px 4px;border-top:1px solid ${C.line}">
   ${sectionTitle('HOW TO USE YOUR GIFT CARD')}
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-    ${step(1, `Book a table online at <a href="${venue.booking}" style="color:${C.red}">OpenTable</a>, or walk in when tables are free. Lunch and dinner, seven days, at ${escapeHtml(venue.shortAddress)}.`)}
+    ${step(1, `Book a table online at <a href="${venue.booking}" style="color:${C.red}">OpenTable</a>, or walk in when tables are free. Lunch and dinner, seven days, at <a href="${venue.maps}" style="color:#3E3431;text-decoration:none">${escapeHtml(venue.shortAddress)}</a>.`)}
     ${step(2, 'When you are ready to pay, show the QR code above to your waiter. They scan it and take the amount off your card.')}
     ${step(3, 'Any amount left stays on your card for your next visit. We email you the new balance each time.')}
   </table>
