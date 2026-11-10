@@ -114,7 +114,7 @@ export async function POST(req: Request) {
 
   const system = `${RULES}\n\nToday in Sydney: ${new Date().toLocaleString('en-AU', { timeZone: 'Australia/Sydney', weekday: 'long', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' })}.\n\nFACTS:\n${FACTS}\n\nMENU (dish | Chinese | price | tag | notes):\n${await menuText()}`;
   try {
-    const payload = JSON.stringify({ model: process.env.ASK_MODEL || 'claude-haiku-5-5', max_tokens: 450, system, messages });
+    const payload = JSON.stringify({ model: process.env.ASK_MODEL || 'claude-haiku-5-5', max_tokens: 2000, system, messages });
     const base: Record<string, string> = { 'anthropic-version': '2023-06-01', 'content-type': 'application/json' };
     const ws = (process.env.ANTHROPIC_WORKSPACE_ID || '').trim();
     if (ws) base['anthropic-workspace-id'] = ws;
@@ -129,7 +129,10 @@ export async function POST(req: Request) {
     }
     let text = (j.content || []).filter((c: { type: string }) => c.type === 'text').map((c: { text: string }) => c.text).join('').trim();
     if (looksLikeCode(text)) text = refusal(last.content);
-    await mark(text ? `ai (${process.env.ASK_MODEL || 'claude-haiku-5-5'})` : 'error: empty answer');
+    const types = (j.content || []).map((c: { type: string }) => c.type).join(',');
+    if (!text) console.error('Ask empty answer', j.stop_reason, types, JSON.stringify(j.usage || {}));
+    await mark(text ? `ai (${j.model || process.env.ASK_MODEL || 'claude-haiku-5-5'}, ${j.stop_reason})` : `error: empty answer (stop=${j.stop_reason}; parts=${types || 'none'})`);
+    if (!text) return Response.json({ ok: false, error: 'empty' }, { status: 502, headers: h });
     return Response.json({ ok: true, answer: text }, { headers: h });
   } catch (e) {
     console.error('Ask failed', e);
