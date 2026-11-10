@@ -2,7 +2,8 @@
 // build does not need real secrets.
 
 function need(name: string): string {
-  const v = process.env[name];
+  // Strip spaces and line breaks that sneak in when keys are copied and pasted.
+  const v = (process.env[name] || '').replace(/\s+/g, '');
   if (!v) throw new Error(`Missing environment variable ${name}`);
   return v;
 }

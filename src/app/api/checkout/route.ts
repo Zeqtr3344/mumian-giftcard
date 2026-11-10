@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     deliver_at: deliverAt.toISOString(),
   }).select('id').single();
   if (error || !order) {
-    console.error('checkout: order insert failed', error?.code, error?.message, error?.hint);
+    console.error('checkout: order insert failed', error?.code, String(error?.message ?? '').replace(/sb_secret_\S+|sk_(live|test)_\S+|eyJ\S+/g, '[key hidden]'));
     return bad('We could not start your order. Please try again.', 500);
   }
 
