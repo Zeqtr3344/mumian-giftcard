@@ -1,4 +1,15 @@
 {
-  "regions": ["syd1"],
-  "crons": [{ "path": "/api/cron/deliver", "schedule": "5 21 * * *" }]
+  "regions": [
+    "syd1"
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/deliver",
+      "schedule": "5 21 * * *"
+    },
+    {
+      "path": "/api/cron/indexnow",
+      "schedule": "40 22 * * *"
+    }
+  ]
 }
