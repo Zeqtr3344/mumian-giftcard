@@ -4,6 +4,7 @@ import { stripe } from '@/lib/stripe';
 import { createHash } from 'crypto';
 import { clientId } from '@/lib/session';
 import { cleanText, dollars, isEmail, sydneyMidnight, sydneyToday } from '@/lib/util';
+import { bonusCents, PROMO } from '@/lib/promo';
 
 // Anti-fraud limits (stolen-card gift card scams): per buyer email and per device/IP.
 const DAY_MAX_ORDERS = 3;          // paid orders in 24 hours
@@ -54,9 +55,11 @@ export async function POST(req: Request) {
     return bad(`For security, online gift card purchases are limited to ${DAY_MAX_ORDERS} cards or $${DAY_MAX_CENTS / 100} a day. For larger or corporate orders, please email ${config.replyTo}.`, 429);
   }
 
+  const bonus = bonusCents(amount * 100);
   const { data: order, error } = await db().from('orders').insert({
     client_hash: client,
     amount_cents: amount * 100,
+    bonus_cents: bonus,
     buyer_name: buyerName, buyer_email: buyerEmail,
     recipient_name: recipientName, recipient_email: recipientEmail,
     message: message || null,
@@ -78,8 +81,8 @@ export async function POST(req: Request) {
         currency: 'aud',
         unit_amount: amount * 100,
         product_data: {
-          name: `MuMian Dining gift card · ${dollars(amount * 100)}`,
-          description: `For ${recipientName}. Valid for ${Math.round(config.expiryMonths / 12)} years.`,
+          name: bonus ? `MuMian Dining gift card · ${dollars(amount * 100)} + ${dollars(bonus)} ${PROMO.name}` : `MuMian Dining gift card · ${dollars(amount * 100)}`,
+          description: `For ${recipientName}. ${bonus ? `Card value ${dollars(amount * 100 + bonus)}. ` : ''}Valid for ${Math.round(config.expiryMonths / 12)} years.`,
         },
       },
     }],

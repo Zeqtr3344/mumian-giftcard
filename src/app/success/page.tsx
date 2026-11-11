@@ -10,7 +10,7 @@ export const metadata = { title: 'Thank you' };
 export default async function Success({ searchParams }: { searchParams: Promise<{ order?: string }> }) {
   const id = (await searchParams).order || '';
   const { data: order } = /^[0-9a-f-]{36}$/.test(id)
-    ? await db().from('orders').select('status, amount_cents, recipient_name, recipient_email, buyer_email, deliver_at').eq('id', id).maybeSingle()
+    ? await db().from('orders').select('status, amount_cents, bonus_cents, recipient_name, recipient_email, buyer_email, deliver_at').eq('id', id).maybeSingle()
     : { data: null };
 
   const paid = order?.status === 'paid';
@@ -33,7 +33,8 @@ export default async function Success({ searchParams }: { searchParams: Promise<
         {order && paid && (
           <>
             <div className="eyebrow muted">Thank you</div>
-            <h1>Your {dollars(order.amount_cents)} gift card is on its way</h1>
+            <h1>Your {dollars(order.amount_cents + (order.bonus_cents ?? 0))} gift card is on its way</h1>
+            {order.bonus_cents ? <p className="muted">Includes your {dollars(order.bonus_cents)} Christmas bonus.</p> : null}
             <p className="lede">
               {self
                 ? later ? `It will arrive in your inbox on the morning of ${sydneyDate(order.deliver_at)}.` : 'It is in your inbox now.'

@@ -1,8 +1,9 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { GiftCardFace } from './components';
+import { bonusCents, PROMO, promoActive } from '@/lib/promo';
 
-const PRESETS = [50, 100, 200, 300];
+const PRESETS = [50, 100, 200, 500];
 
 const todaySydney = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Sydney' });
 const prettyDate = (ymd: string) => new Date(ymd + 'T12:00:00Z').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
@@ -24,6 +25,8 @@ export default function BuyForm({ min, max, cancelled }: { min: number; max: num
   const today = useMemo(todaySydney, []);
   const value = custom ? Number(custom) : amount;
   const valid = Number.isInteger(value) && value >= min && value <= max;
+  const bonus = valid ? bonusCents(value * 100) / 100 : 0;
+  const showPromo = promoActive();
   const forLine = gift
     ? (recipientName ? `For ${recipientName}${buyerName ? `, from ${buyerName}` : ''}` : undefined)
     : (buyerName ? `For ${buyerName}` : undefined);
@@ -50,7 +53,13 @@ export default function BuyForm({ min, max, cancelled }: { min: number; max: num
 
   return (
     <form className="col buy" onSubmit={submit} noValidate>
-      <GiftCardFace amount={valid ? `$${value}` : '$—'} forLine={forLine} />
+      <GiftCardFace amount={valid ? `$${value + bonus}` : '$—'} forLine={forLine} />
+      {showPromo && (
+        <div className="promo" role="note">
+          <b>{PROMO.name}: up to $75 extra</b>
+          <span>{bonus ? `You pay $${value}, the card holds $${value + bonus}.` : 'Add $10 on cards from $100, $25 from $200 and $75 from $500.'} Until {PROMO.endsLabel}.</span>
+        </div>
+      )}
 
       <div className="stack">
         <div className="label">Who is it for?</div>
@@ -64,7 +73,7 @@ export default function BuyForm({ min, max, cancelled }: { min: number; max: num
         <div className="label">Choose an amount</div>
         <div className="amounts" role="radiogroup" aria-label="Amount">
           {PRESETS.map(p => (
-            <button type="button" key={p} role="radio" aria-checked={!custom && amount === p} className={`amt${!custom && amount === p ? ' on' : ''}`} onClick={() => { setAmount(p); setCustom(''); }}>${p}</button>
+            <button type="button" key={p} role="radio" aria-checked={!custom && amount === p} className={`amt${!custom && amount === p ? ' on' : ''}`} onClick={() => { setAmount(p); setCustom(''); }}>${p}{showPromo && bonusCents(p * 100) ? <small className="plus">+${bonusCents(p * 100) / 100}</small> : null}</button>
           ))}
         </div>
         <label className="f">Or enter your own amount
@@ -104,8 +113,12 @@ export default function BuyForm({ min, max, cancelled }: { min: number; max: num
 
       <style>{`
         .buy { display: flex; flex-direction: column; gap: 26px; padding-block: 26px 8px; }
+        .promo { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border: 1px solid #9D2A17; border-radius: 12px; background: rgba(157,42,23,.07); font-size: 15px; }
+        .promo b { color: #9D2A17; }
+        .plus { display: block; font-size: 11px; font-weight: 700; color: #9D2A17; margin-top: 2px; }
+        .amt.on .plus { color: inherit; }
         .amounts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-        .amt { height: 48px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); font: 500 17px var(--f-body); cursor: pointer; font-variant-numeric: tabular-nums; }
+        .amt { min-height: 52px; line-height: 1.1; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); font: 500 17px var(--f-body); cursor: pointer; font-variant-numeric: tabular-nums; }
         .amt.on { border: 2px solid var(--red); background: var(--red); color: #fff; font-weight: 700; }
         .when { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
         .when button { height: 64px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); font: 500 15px var(--f-body); text-align: left; padding: 0 14px; display: flex; flex-direction: column; justify-content: center; gap: 2px; cursor: pointer; }

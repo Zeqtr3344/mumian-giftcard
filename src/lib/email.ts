@@ -115,6 +115,12 @@ function terms(expires: string) {
 </td></tr>`;
 }
 
+/** "Includes $25 Christmas bonus" from a card note, if there is one. */
+function bonusNote(note: string | null | undefined): string | null {
+  const m = (note || '').match(/^Includes \$[\d,.]+ [A-Za-z ]+bonus/);
+  return m ? m[0] : null;
+}
+
 export async function sendGiftCardEmail(c: GiftCard) {
   if (!c.recipient_email) throw new Error('Card has no email address');
   const link = cardUrl(c);
@@ -128,6 +134,7 @@ ${banner(headline)}
     <td style="padding:14px 0;font-family:${FONT};font-size:14px;letter-spacing:2px;color:${C.ink}">GIFT CARD VALUE</td>
     <td align="right" style="padding:14px 0;font-family:${FONT};font-size:34px;font-weight:700;color:${C.ink}">${dollars(c.initial_cents)}</td>
   </tr></table>
+  ${bonusNote(c.note) ? `<div style="font-family:${FONT};font-size:14px;color:${C.soft};text-align:right;padding-top:6px">${escapeHtml(bonusNote(c.note)!)}</div>` : ''}
 </td></tr>
 <tr><td align="center" style="padding:14px 22px 0">
   <table role="presentation" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid ${C.line};border-radius:16px"><tr><td align="center" style="padding:18px">
@@ -180,7 +187,7 @@ ${footer()}`, `${dollars(spentCents)} used, ${dollars(left)} left on your MuMian
   if (error) throw new Error(error.message);
 }
 
-export async function sendReceiptEmail(o: { buyer_name: string; buyer_email: string; recipient_name: string; recipient_email: string; amount_cents: number; deliver_at: string }, sendsNow: boolean) {
+export async function sendReceiptEmail(o: { buyer_name: string; buyer_email: string; recipient_name: string; recipient_email: string; amount_cents: number; bonus_cents?: number | null; deliver_at: string }, sendsNow: boolean) {
   const self = o.buyer_email.toLowerCase() === o.recipient_email.toLowerCase();
   const when = sendsNow
     ? (self ? 'Your card is in a separate email.' : `We've emailed it to ${escapeHtml(o.recipient_name)} (${escapeHtml(o.recipient_email)}).`)
@@ -190,8 +197,9 @@ ${banner('Thank you for your order')}
 <tr><td style="padding:26px 22px 6px">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid ${C.line};border-bottom:1px solid ${C.line}"><tr>
     <td style="padding:14px 0;font-family:${FONT};font-size:14px;letter-spacing:2px;color:${C.ink}">GIFT CARD${self ? '' : ` FOR ${escapeHtml(o.recipient_name.toUpperCase())}`}</td>
-    <td align="right" style="padding:14px 0;font-family:${FONT};font-size:34px;font-weight:700;color:${C.ink}">${dollars(o.amount_cents)}</td>
+    <td align="right" style="padding:14px 0;font-family:${FONT};font-size:34px;font-weight:700;color:${C.ink}">${dollars(o.amount_cents + (o.bonus_cents || 0))}</td>
   </tr></table>
+  ${o.bonus_cents ? `<div style="font-family:${FONT};font-size:14px;color:${C.soft};text-align:right;padding-top:6px">You paid ${dollars(o.amount_cents)} · includes ${dollars(o.bonus_cents)} Christmas bonus</div>` : ''}
 </td></tr>
 <tr><td style="padding:16px 22px 24px;font-family:${FONT};font-size:16px;line-height:1.6;color:${C.soft}">Hi ${escapeHtml(o.buyer_name)}, ${when} Your payment receipt from Stripe is sent separately. If anything looks wrong, just reply to this email.</td></tr>
 ${footer()}`, 'Thanks for your MuMian gift card order');

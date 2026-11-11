@@ -33,6 +33,10 @@ async function webhook(orderId, amount, type = 'checkout.session.completed') {
 const tomorrow = new Date(Date.now() + 2 * 864e5).toLocaleDateString('en-CA', { timeZone: 'Australia/Sydney' });
 const start = emails().length;
 
+// Seasonal bonus (src/lib/promo.ts): a $150 card gets +$10 while the Christmas offer runs.
+const PROMO_ON = Date.now() <= Date.parse('2026-12-31T23:59:59+11:00');
+const V = 15000 + (PROMO_ON ? 1000 : 0);
+
 // --- Buying
 let r = await call('/api/checkout', { method: 'POST', body: { amount: 5, buyerName: 'A', buyerEmail: 'a@x.com', forSelf: true } });
 check('reject $5 amount', r.status === 400 && /between/.test(r.data.error), r.data.error);
@@ -64,11 +68,35 @@ r = await call(`/success?order=${orderNow}`);
 check('thank-you page confirms', r.data.includes('on its way'));
 
 r = await call(`/card/${token}`);
-check('card page shows balance', r.status === 200 && r.data.includes('$150'));
+check('card page shows balance', r.status === 200 && r.data.includes(`$${V / 100}`));
 r = await call(`/card/notarealtoken1234567`);
 check('unknown card page is 404', r.status === 404);
 r = await call(`/api/qr/${token}`);
 check('QR image', r.status === 200 && r.res.headers.get('content-type') === 'image/png');
+
+// --- Christmas bonus on a $200 card
+if (PROMO_ON) {
+  r = await call('/api/checkout', { method: 'POST', body: { amount: 200, forSelf: true, buyerName: 'Bo', buyerEmail: 'bo@example.com' } });
+  const orderBonus = r.data.url.split('cs_test_')[1];
+  const stripeReq = fs.readFileSync('/var/tmp/e2e/stripe.jsonl', 'utf8').trim().split('\n').pop();
+  check('bonus: Stripe charges $200 only', decodeURIComponent(stripeReq).includes('unit_amount]=20000'));
+  check('bonus: Stripe line names the bonus', decodeURIComponent(stripeReq.replace(/\+/g, ' ')).includes('Christmas bonus'));
+  const b0 = emails().length;
+  await webhook(orderBonus, 20000);
+  const bm = emails().slice(b0);
+  const cardMail = bm.find(e => e.subject === 'Your MuMian gift card');
+  const rcpt = bm.find(e => e.subject === 'Your MuMian gift card order');
+  check('bonus: card holds $225', cardMail && cardMail.html.includes('$225') && cardMail.html.includes('Includes $25.00 Christmas bonus') || cardMail?.html.includes('Includes $25 Christmas bonus'), cardMail?.html.match(/Includes[^<]*/)?.[0]);
+  check('bonus: receipt shows paid and bonus', rcpt && rcpt.html.includes('$225') && rcpt.html.includes('You paid $200'));
+  const bcode = cardMail?.html.match(/MM-[A-Z0-9]{4}-[A-Z0-9]{4}/)?.[0];
+  r = await call('/api/balance', { method: 'POST', body: { code: bcode } });
+  check('bonus: balance is $225', r.data.ok && r.data.balance_cents === 22500);
+  r = await call(`/success?order=${orderBonus}`);
+  check('bonus: thank-you page shows $225', r.data.includes('$225') && r.data.includes('Christmas bonus'));
+  r = await call('/api/checkout', { method: 'POST', body: { amount: 99, forSelf: true, buyerName: 'Cy', buyerEmail: 'cy@example.com' } });
+  const st = fs.readFileSync('/var/tmp/e2e/stripe.jsonl', 'utf8').trim().split('\n').pop();
+  check('no bonus under $100', !decodeURIComponent(st.replace(/\+/g, ' ')).includes('bonus'));
+}
 
 // --- Scheduled card
 r = await call('/api/checkout', { method: 'POST', body: { amount: 80, forSelf: true, buyerName: 'Tom', buyerEmail: 'tom@example.com', deliverDate: tomorrow } });
@@ -85,7 +113,7 @@ check('cron does not send early', r.status === 200 && emails().length - before =
 const giftCode = giftMail.html.match(/MM-[A-Z0-9]{4}-[A-Z0-9]{4}/)?.[0];
 check('card number in email (MM-XXXX-XXXX)', /^MM-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(giftCode || ''), giftCode);
 r = await call('/api/balance', { method: 'POST', body: { code: giftCode.toLowerCase() } });
-check('public balance check', r.data.ok && r.data.balance_cents === 15000);
+check('public balance check', r.data.ok && r.data.balance_cents === V);
 r = await call('/api/balance', { method: 'POST', body: { code: 'MM-AAAA-BBBB' } });
 check('balance: unknown card', r.status === 404);
 
@@ -98,19 +126,19 @@ r = await call('/api/staff/login', { method: 'POST', body: { pin: '1357' } });
 const amy = r.res.headers.get('set-cookie')?.split(';')[0];
 check('staff login', r.data.ok && r.data.role === 'staff' && !!amy);
 r = await call('/api/staff/lookup', { method: 'POST', body: { code: giftCode }, cookie: amy });
-check('staff lookup', r.data.ok && r.data.card.balance_cents === 15000);
+check('staff lookup', r.data.ok && r.data.card.balance_cents === V);
 r = await call('/api/staff/lookup', { method: 'POST', body: { code: `${BASE}/card/${token}` }, cookie: amy });
-check('staff lookup from scanned QR link', r.data.ok && r.data.card.balance_cents === 15000);
+check('staff lookup from scanned QR link', r.data.ok && r.data.card.balance_cents === V);
 r = await call('/api/staff/redeem', { method: 'POST', body: { code: giftCode, amountCents: 3050, reference: 'Table 7' }, cookie: amy });
-check('redeem $30.50', r.data.ok && r.data.balance_cents === 11950);
+check('redeem $30.50', r.data.ok && r.data.balance_cents === V - 3050);
 const redeemTx = r.data.transaction_id;
 await new Promise(res => setTimeout(res, 800));
 const rmail = emails().at(-1);
-check('holder emailed new balance', JSON.stringify(rmail.to).includes('mum@example.com') && rmail.subject.includes('$119.50 left'), rmail.subject);
+check('holder emailed new balance', JSON.stringify(rmail.to).includes('mum@example.com') && rmail.subject.includes(`$${((V - 3050) / 100).toFixed(2)} left`), rmail.subject);
 r = await call('/api/staff/today', { cookie: amy });
 check('today list shows redemption', r.data.ok && r.data.total_cents === 3050 && r.data.items[0].staff === 'Amy');
 r = await call('/api/staff/redeem', { method: 'POST', body: { code: giftCode, amountCents: 20000 }, cookie: amy });
-check('over-redeem refused with balance', r.status === 409 && r.data.balance_cents === 11950);
+check('over-redeem refused with balance', r.status === 409 && r.data.balance_cents === V - 3050);
 r = await call('/api/admin/stats', { cookie: amy });
 check('staff cannot open admin', r.status === 403);
 
@@ -118,14 +146,14 @@ check('staff cannot open admin', r.status === 403);
 r = await call('/api/staff/login', { method: 'POST', body: { pin: '2468' } });
 const boss = r.res.headers.get('set-cookie')?.split(';')[0];
 r = await call('/api/admin/stats', { cookie: boss });
-check('manager stats', r.data.ok && r.data.stats.outstanding_cents === 11950 + 8000, JSON.stringify(r.data.stats));
+check('manager stats', r.data.ok && r.data.stats.outstanding_cents === V - 3050 + 8000 + (PROMO_ON ? 22500 : 0), JSON.stringify(r.data.stats));
 r = await call('/api/admin/cards?q=mum', { cookie: boss });
 check('search by name', r.data.ok && r.data.total === 1);
 const cardId = r.data.cards[0].id;
 r = await call(`/api/admin/card?id=${cardId}`, { cookie: boss });
 check('card detail with history', r.data.ok && r.data.transactions.length === 2 && r.data.order?.buyer_name === 'Lily Chen');
 r = await call('/api/admin/reverse', { method: 'POST', body: { transactionId: redeemTx }, cookie: boss });
-check('undo redemption', r.data.ok && r.data.balance_cents === 15000);
+check('undo redemption', r.data.ok && r.data.balance_cents === V);
 r = await call('/api/admin/resend', { method: 'POST', body: { id: cardId, email: 'mum.new@example.com' }, cookie: boss });
 check('resend to new address', r.data.ok && JSON.stringify(emails().at(-1).to).includes('mum.new@example.com'));
 r = await call('/api/admin/issue', { method: 'POST', body: { amount: 50, reason: 'Complaint, table 12', recipientName: 'Sam', recipientEmail: 'sam@example.com' }, cookie: boss });
@@ -144,7 +172,7 @@ r = await call('/api/admin/import', { method: 'POST', body: { rows, commit: fals
 check('import preview finds problems', r.data.ok && r.data.preview && r.data.ready === 2 && r.data.problems.length === 3, JSON.stringify(r.data.problems.map(p => p.problems)));
 check('import preview totals', r.data.readyBalanceCents === 22000);
 const countBefore = (await call('/api/admin/cards', { cookie: boss })).data.total;
-check('preview saves nothing', countBefore === 3, `total=${countBefore}`);
+check('preview saves nothing', countBefore === 3 + (PROMO_ON ? 1 : 0), `total=${countBefore}`);
 r = await call('/api/admin/import', { method: 'POST', body: { rows, commit: true }, cookie: boss });
 check('import commits good rows', r.data.imported === 2);
 r = await call('/api/staff/lookup', { method: 'POST', body: { code: 'tao 1001' }, cookie: amy });
@@ -160,7 +188,7 @@ check('cancel card', r.data.ok);
 r = await call('/api/staff/redeem', { method: 'POST', body: { code: giftCode, amountCents: 100 }, cookie: amy });
 check('cancelled card refused at till', r.status === 409 && /cancelled/.test(r.data.error));
 r = await call('/api/admin/export', { cookie: boss });
-check('CSV export', r.status === 200 && r.data.split('\n').length === 6 && r.data.startsWith('Card number'), `${r.data.split('\n').length} lines`);
+check('CSV export', r.status === 200 && r.data.split('\n').length === 6 + (PROMO_ON ? 1 : 0) && r.data.startsWith('Card number'), `${r.data.split('\n').length} lines`);
 r = await call('/api/admin/export');
 check('export needs login', r.status === 401);
 

@@ -95,7 +95,8 @@ async function fulfil(orderId: string, s: Stripe.Checkout.Session) {
     try {
       card = await issueCard({
         source: 'online',
-        amountCents: s.amount_total ?? order.amount_cents,
+        amountCents: (s.amount_total ?? order.amount_cents) + (order.bonus_cents ?? 0),
+        note: order.bonus_cents ? `Includes ${dollars(order.bonus_cents)} Christmas bonus (paid ${dollars(s.amount_total ?? order.amount_cents)})` : null,
         orderId,
         recipientName: order.recipient_name,
         recipientEmail: order.recipient_email,

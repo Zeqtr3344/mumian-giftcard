@@ -22,6 +22,7 @@ create table if not exists orders (
   stripe_session_id  text unique,
   stripe_payment_intent text,
   amount_cents       int  not null check (amount_cents > 0),
+  bonus_cents        int  not null default 0 check (bonus_cents >= 0),
   buyer_name         text not null,
   buyer_email        text not null,
   recipient_name     text not null,
