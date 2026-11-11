@@ -17,7 +17,7 @@ export async function OPTIONS(req: Request) { return new Response(null, { status
 
 const FACTS = `MuMian Dining is a modern Cantonese restaurant at Darling Quarter, Darling Harbour, Sydney, open since 2022.
 Address: Shops 5 & 6, Darling Quarter, 1–25 Harbour Street, Sydney NSW 2000, facing Tumbalong Park. About a 5–10 minute walk to ICC Sydney and the TikTok Entertainment Centre; Town Hall station is a short walk. Google Maps: https://www.google.com/maps/search/?api=1&query=MuMian+Dining%2C+1-25+Harbour+Street%2C+Darling+Quarter%2C+Sydney+NSW+2000
-Hours: lunch Monday–Friday 11:30am–3pm, Saturday–Sunday 12pm–3:30pm. Dinner every night from 5pm, until 10pm Friday and Saturday and 9:30pm Sunday–Thursday. Kitchen and bar close together.
+Hours: lunch every day 11:30am–3pm. Dinner every night from 5pm, until 10pm Friday and Saturday and 9:30pm Sunday–Thursday. Kitchen and bar close together.
 The main menu is served at lunch and dinner. Yum cha (dim sum and small plates) is lunch only.
 Spaces: main dining room, window bar, private dining room, alfresco terrace. Licensed bar with cocktails, wine and beer (no drinks list is published here, so do not name specific drinks or drink prices).
 Bookings: OpenTable https://www.opentable.com.au/r/mumian-dining-sydney (the assistant cannot make, change or cancel bookings). Walk-ins welcome when tables are free; booking recommended for dinner and weekends.
