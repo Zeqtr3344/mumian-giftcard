@@ -2,6 +2,7 @@ import 'server-only';
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies, headers } from 'next/headers';
 import { config } from './config';
+import { db } from './db';
 
 export type Staff = { id: string; name: string; role: 'staff' | 'manager' };
 
@@ -33,7 +34,10 @@ export async function currentStaff(): Promise<Staff | null> {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, key(), { algorithms: ['HS256'] });
-    return { id: String(payload.sub), name: String(payload.name), role: payload.role === 'manager' ? 'manager' : 'staff' };
+    // Check the person is still on, and use their current role, so changes in admin apply straight away.
+    const { data } = await db().from('staff').select('id, name, role, active').eq('id', String(payload.sub)).maybeSingle();
+    if (!data || !data.active) return null;
+    return { id: data.id, name: data.name, role: data.role === 'manager' ? 'manager' : 'staff' };
   } catch {
     return null;
   }

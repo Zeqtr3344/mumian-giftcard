@@ -21,12 +21,13 @@ function stateOf(r: { status: string; expires_at: string; balance_cents: number 
 
 export default function Admin() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
+  const [tab, setTab] = useState<'cards' | 'staff'>('cards');
   useEffect(() => { fetch('/api/staff/me').then(r => r.json()).then(d => setMe(d.ok ? d : null)).catch(() => setMe(null)); }, []);
 
   return (
     <div className="admin">
       <header className="top"><div className="wrap" style={{ alignItems: 'center' }}>
-        <div className="brand"><img src="/logo-red.png" alt="MūMiān 木棉" width={141} height={44} /><span>GIFT CARD ADMIN</span></div>
+        <div className="brand"><img src="/logo-black.png" alt="MūMiān 木棉" width={141} height={44} /><span>GIFT CARD ADMIN</span></div>
         <span style={{ flex: 1 }} />
         {me && <button className="lnk" onClick={async () => { await post('/api/staff/logout'); setMe(null); }}>{me.name} · Log out</button>}
       </div></header>
@@ -34,7 +35,15 @@ export default function Admin() {
         {me === undefined && <p className="muted">Loading…</p>}
         {me === null && <div className="login"><PinLogin onIn={setMe} /></div>}
         {me && me.role !== 'manager' && <p className="note">This page is for managers. Use the <a href="/staff">redeem app</a> to redeem cards.</p>}
-        {me && me.role === 'manager' && <Dashboard onLoggedOut={() => setMe(null)} />}
+        {me && me.role === 'manager' && (
+          <>
+            <div className="tabs" role="tablist">
+              <button role="tab" aria-selected={tab === 'cards'} className={tab === 'cards' ? 'on' : ''} onClick={() => setTab('cards')}>Gift cards</button>
+              <button role="tab" aria-selected={tab === 'staff'} className={tab === 'staff' ? 'on' : ''} onClick={() => setTab('staff')}>Staff</button>
+            </div>
+            {tab === 'cards' ? <Dashboard onLoggedOut={() => setMe(null)} /> : <StaffPanel onLoggedOut={() => setMe(null)} />}
+          </>
+        )}
       </main>
       <style>{`
                 .lnk { background: none; border: 0; color: var(--mute); font: inherit; font-size: .86rem; cursor: pointer; text-decoration: underline; }
@@ -55,6 +64,21 @@ export default function Admin() {
         .ok-msg { color: var(--ok); }
         .pager { display: flex; gap: 10px; align-items: center; justify-content: flex-end; }
         @media (max-width: 900px) { .tiles { grid-template-columns: 1fr 1fr; } .g2 { grid-template-columns: 1fr; } }
+        .tabs { display: flex; gap: 6px; border-bottom: 1px solid #E2D6CF; margin-bottom: -6px; }
+        .tabs button { background: none; border: 0; border-bottom: 3px solid transparent; padding: 10px 14px; font: 600 1.05rem var(--f-body); color: var(--mute); cursor: pointer; letter-spacing: .02em; }
+        .tabs button.on { color: var(--red); border-bottom-color: var(--red); }
+        .people { display: flex; flex-direction: column; gap: 10px; }
+        .person { background: #fff; border: 1px solid #E2D6CF; border-radius: 14px; padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+        .person.off { opacity: .62; }
+        .person .who { flex: 1 1 180px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .person .who b { font-size: 1.15rem; }
+        .person .acts { display: flex; flex-wrap: wrap; gap: 8px; }
+        .pill { display: inline-block; font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 99px; background: #F3EAE5; color: var(--mute); margin-left: 8px; vertical-align: 2px; }
+        .pill.mgr { background: rgba(157,42,23,.1); color: var(--red); }
+        .pinrow { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; width: 100%; }
+        .pinrow .f { flex: 1 1 160px; }
+        .reveal { background: #FBF6F3; border: 1px dashed var(--red); border-radius: 12px; padding: 12px 14px; width: 100%; }
+        .reveal .big { font: 700 1.8rem var(--f-body); letter-spacing: .18em; font-variant-numeric: tabular-nums; }
         .hide-sm { } @media (max-width: 700px) { .hide-sm { display: none; } }
       `}</style>
     </div>
@@ -331,5 +355,131 @@ function ImportPanel({ onDone }: { onDone: () => void }) {
       )}
       {err && <p className="err">{err}</p>}
     </div>
+  );
+}
+
+type Person = { id: string; name: string; role: 'staff' | 'manager'; active: boolean; created_at: string };
+
+/** A random PIN that is easy to read out: no runs like 1234 or repeats like 1111. */
+function suggestPin(len: number): string {
+  for (;;) {
+    const a = new Uint32Array(len); crypto.getRandomValues(a);
+    const p = Array.from(a, n => String(n % 10)).join('');
+    if (/(\d)\1\1/.test(p) || '0123456789 9876543210'.includes(p.slice(0, 4))) continue;
+    return p;
+  }
+}
+
+function StaffPanel({ onLoggedOut }: { onLoggedOut: () => void }) {
+  const [list, setList] = useState<Person[]>([]);
+  const [meId, setMeId] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<{ id: string; mode: 'pin' | 'on' } | null>(null);
+  const [shown, setShown] = useState<{ name: string; pin: string } | null>(null);
+  const [err, setErr] = useState('');
+
+  const load = useCallback(async () => {
+    const d = await fetch('/api/admin/staff').then(r => r.json());
+    if (d.error === 'Please log in again') return onLoggedOut();
+    if (d.ok) { setList(d.staff); setMeId(d.me); }
+  }, [onLoggedOut]);
+  useEffect(() => { load(); }, [load]);
+
+  async function act(body: Record<string, unknown>, okMsg?: { name: string; pin: string }) {
+    setErr('');
+    const r = await post('/api/admin/staff', body);
+    if (r.loggedOut) return onLoggedOut();
+    if (!r.ok) { setErr(r.error); return false; }
+    setShown(okMsg ?? null); setEditing(null); setAdding(false); load();
+    return true;
+  }
+
+  const on = list.filter(p => p.active), off = list.filter(p => !p.active);
+  return (
+    <div className="stack" style={{ gap: 18 }}>
+      <div className="bar">
+        <p className="muted small grow" style={{ margin: 0 }}>Everyone signs in with their own PIN, and every redemption is saved under their name. <b>Staff</b> can check and redeem cards. <b>Managers</b> can also reverse mistakes, issue and cancel cards, and open this page.</p>
+        {!adding && <button className="btn sm" onClick={() => { setAdding(true); setShown(null); setErr(''); }}>Add a person</button>}
+      </div>
+
+      {shown && (
+        <div className="reveal" role="status">
+          <div className="small">PIN for <b>{shown.name}</b>. Tell them in person; it won’t be shown again.</div>
+          <div className="big">{shown.pin}</div>
+          <button className="btn outline sm" onClick={() => setShown(null)}>Done</button>
+        </div>
+      )}
+      {err && <p className="err">{err}</p>}
+      {adding && <AddPerson onCancel={() => setAdding(false)} onSave={(name, role, pin) => act({ action: 'add', name, role, pin }, { name, pin })} />}
+
+      <div className="people">
+        {on.map(p => (
+          <div className="person" key={p.id}>
+            <div className="who"><b>{p.name}{p.id === meId && <span className="muted xs"> (you)</span>}<span className={p.role === 'manager' ? 'pill mgr' : 'pill'}>{p.role === 'manager' ? 'Manager' : 'Staff'}</span></b><span className="muted xs">Added {day(p.created_at)}</span></div>
+            <div className="acts">
+              <button className="btn outline sm" onClick={() => { setEditing({ id: p.id, mode: 'pin' }); setShown(null); setErr(''); }}>New PIN</button>
+              {p.id !== meId && <button className="btn outline sm" onClick={() => act({ action: 'role', id: p.id, role: p.role === 'manager' ? 'staff' : 'manager' })}>{p.role === 'manager' ? 'Make staff' : 'Make manager'}</button>}
+              {p.id !== meId && <button className="btn outline sm" onClick={() => { if (confirm(`Switch off ${p.name}? Their PIN stops working straight away.`)) act({ action: 'off', id: p.id }); }}>Switch off</button>}
+            </div>
+            {editing?.id === p.id && <PinEdit name={p.name} onCancel={() => setEditing(null)} onSave={pin => act({ action: 'pin', id: p.id, pin }, { name: p.name, pin })} />}
+          </div>
+        ))}
+        {!on.length && <p className="muted">Loading…</p>}
+      </div>
+
+      {off.length > 0 && (
+        <>
+          <div className="eyebrow">Switched off</div>
+          <div className="people">
+            {off.map(p => (
+              <div className="person off" key={p.id}>
+                <div className="who"><b>{p.name}<span className="pill">{p.role === 'manager' ? 'Manager' : 'Staff'}</span></b><span className="muted xs">PIN no longer works · their history is kept</span></div>
+                <div className="acts"><button className="btn outline sm" onClick={() => { setEditing({ id: p.id, mode: 'on' }); setShown(null); setErr(''); }}>Switch back on</button></div>
+                {editing?.id === p.id && <PinEdit name={p.name} onCancel={() => setEditing(null)} onSave={pin => act({ action: 'on', id: p.id, pin }, { name: p.name, pin })} />}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function PinEdit({ name, onSave, onCancel }: { name: string; onSave: (pin: string) => Promise<boolean | void>; onCancel: () => void }) {
+  const [pin, setPin] = useState(() => suggestPin(4));
+  const [busy, setBusy] = useState(false);
+  return (
+    <form className="pinrow" onSubmit={async e => { e.preventDefault(); setBusy(true); await onSave(pin); setBusy(false); }}>
+      <label className="f">New PIN for {name} (4–8 digits)<input className="in" inputMode="numeric" autoComplete="off" maxLength={8} value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))} /></label>
+      <button type="button" className="btn outline sm" onClick={() => setPin(suggestPin(pin.length >= 6 ? pin.length : 4))}>Suggest</button>
+      <button className="btn sm" disabled={busy || pin.length < 4}>{busy ? 'Saving…' : 'Save PIN'}</button>
+      <button type="button" className="btn outline sm" onClick={onCancel}>Cancel</button>
+    </form>
+  );
+}
+
+function AddPerson({ onSave, onCancel }: { onSave: (name: string, role: 'staff' | 'manager', pin: string) => Promise<boolean | void>; onCancel: () => void }) {
+  const [name, setName] = useState('');
+  const [role, setRole] = useState<'staff' | 'manager'>('staff');
+  const [pin, setPin] = useState(() => suggestPin(4));
+  const [busy, setBusy] = useState(false);
+  return (
+    <form className="sheet" onSubmit={async e => { e.preventDefault(); setBusy(true); await onSave(name.trim(), role, pin); setBusy(false); }}>
+      <h2>Add a person</h2>
+      <div className="g2">
+        <label className="f">Name (as staff know them)<input className="in" id="s-name" value={name} maxLength={40} onChange={e => setName(e.target.value)} placeholder="e.g. Amy" /></label>
+        <div className="f">Role
+          <div className="seg" role="radiogroup">
+            <button type="button" role="radio" aria-checked={role === 'staff'} className={role === 'staff' ? 'on' : ''} onClick={() => { setRole('staff'); setPin(suggestPin(4)); }}>Staff</button>
+            <button type="button" role="radio" aria-checked={role === 'manager'} className={role === 'manager' ? 'on' : ''} onClick={() => { setRole('manager'); setPin(suggestPin(6)); }}>Manager</button>
+          </div>
+        </div>
+      </div>
+      <div className="pinrow">
+        <label className="f">PIN (4–8 digits{role === 'manager' ? ', 6 recommended for managers' : ''})<input className="in" id="s-pin" inputMode="numeric" autoComplete="off" maxLength={8} value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))} /></label>
+        <button type="button" className="btn outline sm" onClick={() => setPin(suggestPin(role === 'manager' ? 6 : 4))}>Suggest</button>
+      </div>
+      <div className="bar"><button className="btn sm" disabled={busy || !name.trim() || pin.length < 4}>{busy ? 'Adding…' : 'Add'}</button><button type="button" className="btn outline sm" onClick={onCancel}>Cancel</button></div>
+    </form>
   );
 }
