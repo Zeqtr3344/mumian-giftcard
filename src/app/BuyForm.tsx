@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { GiftCardFace } from './components';
 import { bonusCents, PROMO, promoActive } from '@/lib/promo';
 
@@ -7,6 +7,20 @@ const PRESETS = [50, 100, 200, 500];
 
 const todaySydney = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Sydney' });
 const prettyDate = (ymd: string) => new Date(ymd + 'T12:00:00Z').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+
+/** Where the buyer came from (e.g. the Christmas email), so campaign sales can be counted. Kept for the visit. */
+function useUtm() {
+  const [utm, setUtm] = useState<{ source?: string; campaign?: string }>({});
+  useEffect(() => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      const fresh = { source: q.get('utm_source') || undefined, campaign: q.get('utm_campaign') || undefined };
+      if (fresh.source || fresh.campaign) sessionStorage.setItem('mm-utm', JSON.stringify(fresh));
+      setUtm(fresh.source || fresh.campaign ? fresh : JSON.parse(sessionStorage.getItem('mm-utm') || '{}'));
+    } catch { /* storage blocked: no tracking, purchase still works */ }
+  }, []);
+  return utm;
+}
 
 export default function BuyForm({ min, max, cancelled }: { min: number; max: number; cancelled: boolean }) {
   const [gift, setGift] = useState(true);
@@ -20,6 +34,7 @@ export default function BuyForm({ min, max, cancelled }: { min: number; max: num
   const [buyerName, setBuyerName] = useState('');
   const [buyerEmail, setBuyerEmail] = useState('');
   const [busy, setBusy] = useState(false);
+  const utm = useUtm();
   const [error, setError] = useState(cancelled ? 'Payment was cancelled, so no card was bought. You can try again below.' : '');
 
   const today = useMemo(todaySydney, []);
@@ -40,7 +55,7 @@ export default function BuyForm({ min, max, cancelled }: { min: number; max: num
     try {
       const res = await fetch('/api/checkout', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: value, forSelf: !gift, recipientName, recipientEmail, message, buyerName, buyerEmail, deliverDate: later ? date : today }),
+        body: JSON.stringify({ amount: value, forSelf: !gift, recipientName, recipientEmail, message, buyerName, buyerEmail, deliverDate: later ? date : today, utmSource: utm.source, utmCampaign: utm.campaign }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);

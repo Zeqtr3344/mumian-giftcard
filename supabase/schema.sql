@@ -31,6 +31,8 @@ create table if not exists orders (
   deliver_at         timestamptz not null default now(),
   status             text not null default 'pending' check (status in ('pending','paid','cancelled','refunded','disputed')),
   client_hash        text,                       -- hashed device/IP, for purchase limits
+  utm_source         text,                       -- where the buyer came from (e.g. newsletter)
+  utm_campaign       text,                       -- e.g. christmas
   created_at         timestamptz not null default now(),
   paid_at            timestamptz
 );

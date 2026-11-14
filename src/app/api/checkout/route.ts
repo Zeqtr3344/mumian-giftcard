@@ -56,7 +56,9 @@ export async function POST(req: Request) {
   }
 
   const bonus = bonusCents(amount * 100);
+  const tag = (v: unknown) => (typeof v === 'string' ? v.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40) : '') || null;
   const { data: order, error } = await db().from('orders').insert({
+    utm_source: tag(b.utmSource), utm_campaign: tag(b.utmCampaign),
     client_hash: client,
     amount_cents: amount * 100,
     bonus_cents: bonus,
@@ -86,7 +88,7 @@ export async function POST(req: Request) {
         },
       },
     }],
-    metadata: { order_id: order.id },
+    metadata: { order_id: order.id, ...(tag(b.utmCampaign) ? { utm_campaign: tag(b.utmCampaign)! } : {}) },
     payment_intent_data: { metadata: { order_id: order.id }, description: `MuMian gift card ${order.id}` },
     // Ask the card's bank to verify the buyer (3D Secure). Fraud chargebacks on verified payments usually fall on the bank, not us.
     payment_method_options: { card: { request_three_d_secure: 'any' } },
