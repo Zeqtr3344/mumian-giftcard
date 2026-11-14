@@ -87,6 +87,7 @@ export default function Admin() {
 
 function Dashboard({ onLoggedOut }: { onLoggedOut: () => void }) {
   const [stats, setStats] = useState<Stats | null>(null);
+  const [campaigns, setCampaigns] = useState<Record<string, { count: number; cents: number }>>({});
   const [rows, setRows] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
   const [q, setQ] = useState('');
@@ -100,7 +101,7 @@ function Dashboard({ onLoggedOut }: { onLoggedOut: () => void }) {
       fetch(`/api/admin/cards?q=${encodeURIComponent(q)}&page=${page}`).then(r => r.json()),
     ]);
     if (s.error === 'Please log in again' || c.error === 'Please log in again') return onLoggedOut();
-    if (s.ok) setStats(s.stats);
+    if (s.ok) { setStats(s.stats); setCampaigns(s.campaigns ?? {}); }
     if (c.ok) { setRows(c.cards); setTotal(c.total); }
   }, [q, page, onLoggedOut]);
 
@@ -115,6 +116,9 @@ function Dashboard({ onLoggedOut }: { onLoggedOut: () => void }) {
           <div className="tile"><span className="eyebrow">Redeemed, 30 days</span><span className="v">{money(stats.redeemed_30d_cents)}</span><span className="muted xs">net of reversals</span></div>
           <div className="tile"><span className="eyebrow">Expiring in 90 days</span><span className="v">{money(stats.expiring_90d_cents)}</span><span className="muted xs">still on cards that expire soon</span></div>
         </div>
+      )}
+      {Object.keys(campaigns).length > 0 && (
+        <p className="muted small" style={{ margin: 0 }}>Sales from links: {Object.entries(campaigns).map(([k, v]) => `${k} ${v.count} card${v.count === 1 ? '' : 's'} (${money(v.cents)})`).join(' · ')}</p>
       )}
 
       <div className="bar">
