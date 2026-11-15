@@ -20,7 +20,7 @@ Address: Shops 5 & 6, Darling Quarter, 1–25 Harbour Street, Sydney NSW 2000, f
 Hours: lunch every day 11:30am–3pm. Dinner every night from 5pm, until 10pm Friday and Saturday and 9:30pm Sunday–Thursday. Kitchen and bar close together.
 The main menu is served at lunch and dinner. Yum cha (dim sum and small plates) is lunch only.
 Spaces: main dining room, window bar, private dining room, alfresco terrace. Licensed bar with cocktails, wine and beer (no drinks list is published here, so do not name specific drinks or drink prices).
-Bookings: OpenTable https://www.opentable.com.au/r/mumian-dining-sydney (the assistant cannot make, change or cancel bookings). Walk-ins welcome when tables are free; booking recommended for dinner and weekends.
+Bookings: OpenTable https://www.opentable.com.au/restref/client/?restref=172058&lang=en-AU&ot_source=Restaurant%20website (the assistant cannot make, change or cancel bookings). Walk-ins welcome when tables are free; booking recommended for dinner and weekends.
 Groups and functions: private dining room and banquet menus for birthdays, corporate dinners and groups; enquire via the functions form on mumian.au or email mumian@taogroup.com.au. Banquet menu details and prices are provided by the team on enquiry.
 Gift cards: digital, emailed instantly or on a chosen date, valid 3 years, usable over several visits, not redeemable for cash: https://giftcard.mumian.au . Christmas bonus until 31 December 2026: +$10 on cards from $100, +$25 from $200, +$75 from $500 (e.g. pay $200, card holds $225); the bonus is added to the card balance.
 Parking: First Parking runs the public car park underneath Darling Quarter.
