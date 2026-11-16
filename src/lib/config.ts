@@ -34,6 +34,6 @@ export const venue = {
   get instagramUrl() { return `https://www.instagram.com/${this.instagram.replace(/^@/, '')}/`; },
   maps: 'https://maps.google.com/?q=MuMian+Dining,+Darling+Quarter,+1-25+Harbour+Street,+Sydney+NSW+2000',
   shortAddress: '1–25 Harbour Street, Darling Quarter',
-  booking: 'https://www.opentable.com.au/restref/client/?restref=172058&lang=en-AU&ot_source=Restaurant%20website',
+  booking: 'https://www.opentable.com.au/restref/client/?rid=172058&restref=172058&lang=en-AU&ot_source=Restaurant%20website',
   legalEntity: 'Tao Darling Quarter Pty Ltd',
 };
