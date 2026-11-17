@@ -8,7 +8,12 @@ const EMAILS = process.env.EMAIL_LOG;
 const stripe = new Stripe('sk_test_dummy');
 let failures = 0;
 const check = (name, cond, extra = '') => { console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${extra ? '  ' + extra : ''}`); if (!cond) failures++; };
-const emails = () => (fs.existsSync(EMAILS) ? fs.readFileSync(EMAILS, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l)) : []);
+const allEmails = () => (fs.existsSync(EMAILS) ? fs.readFileSync(EMAILS, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l)) : []);
+// The owner's per-sale notes (SALES_ALERT_EMAIL) are counted separately from customer emails.
+const SALES = process.env.SALES_ALERT_EMAIL;
+const isSale = e => SALES && JSON.stringify(e.to).includes(SALES);
+const emails = () => allEmails().filter(e => !isSale(e));
+const saleNotes = () => allEmails().filter(isSale);
 
 async function call(path, { method = 'GET', body, cookie, headers = {} } = {}) {
   const res = await fetch(BASE + path, {
@@ -63,6 +68,7 @@ check('email links to card page', !!token);
 
 r = await webhook(orderNow, 15000);
 check('replayed webhook does not duplicate', r.status === 200 && emails().length - start === 2);
+if (SALES) check('owner gets one sale note per order', saleNotes().length === 1 && /Gift card sold/.test(saleNotes()[0].subject), `${saleNotes().length} notes`);
 
 r = await call(`/success?order=${orderNow}`);
 check('thank-you page confirms', r.data.includes('on its way'));

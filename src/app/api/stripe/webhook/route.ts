@@ -116,6 +116,21 @@ async function fulfil(orderId: string, s: Stripe.Checkout.Session) {
         'Most large orders are genuine. If the card is used soon for a big bill by someone who does not match these details, it is worth a friendly check, as stolen credit cards are sometimes used this way.',
       ]);
     }
+    if (config.salesAlertEmail) {
+      const paid = s.amount_total ?? order.amount_cents;
+      const bonus = order.bonus_cents ?? 0;
+      const when = new Date(order.deliver_at) <= new Date() ? 'Sent now'
+        : `Scheduled for ${new Date(order.deliver_at).toLocaleString('en-AU', { timeZone: 'Australia/Sydney', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}`;
+      const source = order.utm_source ? `${order.utm_source}${order.utm_campaign ? ` / ${order.utm_campaign}` : ''}` : 'Direct (no campaign link)';
+      try {
+        await sendStaffAlert(`Gift card sold: ${dollars(paid)}${bonus ? ` + ${dollars(bonus)} bonus` : ''}`, [
+          `Paid ${dollars(paid)}${bonus ? `, card value ${dollars(paid + bonus)} with the Christmas bonus` : ''}.`,
+          `Bought by ${order.buyer_name} (${order.buyer_email})${order.buyer_email === order.recipient_email ? ' for themselves' : ` for ${order.recipient_name} (${order.recipient_email})`}.`,
+          `Delivery: ${when}.`,
+          `Came from: ${source}.`,
+        ], config.salesAlertEmail);
+      } catch (e) { console.error('Sales alert failed', orderId, e); }
+    }
     const sendsNow = new Date(order.deliver_at) <= new Date();
     try { await sendReceiptEmail(order, sendsNow); } catch (e) { console.error('Receipt email failed', orderId, e); }
   } else {

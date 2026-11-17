@@ -17,6 +17,8 @@ export const config = {
   get resendKey() { return need('RESEND_API_KEY'); },
   get fromEmail() { return process.env.FROM_EMAIL || 'MuMian Dining <hi@mumian.au>'; },
   get replyTo() { return process.env.REPLY_TO_EMAIL || 'mumian@taogroup.com.au'; },
+  /** Optional: a private inbox that gets a short note for every gift card sold. */
+  get salesAlertEmail() { return (process.env.SALES_ALERT_EMAIL || '').trim(); },
   get sessionSecret() { return need('SESSION_SECRET'); },
   get cronSecret() { return need('CRON_SECRET'); },
   get expiryMonths() { return Number(process.env.GIFT_CARD_EXPIRY_MONTHS || 36); },
